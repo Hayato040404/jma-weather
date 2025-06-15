@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>気象庁情報</title>
+  <style>
+    body {
+      font-family: 'Noto Sans JP', sans-serif;
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 20px;
+      background-color: #f5f5f5;
+      color: #333;
+    }
+    h1 {
+      text-align: center;
+      color: #2c3e50;
+    }
+    h2 {
+      color: #34495e;
+      border-bottom: 2px solid #3498db;
+      padding-bottom: 5px;
+      margin-top: 30px;
+    }
+    .alert-container {
+      background: white;
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    }
+    .alert-title {
+      font-size: 1.5em;
+      color: #c0392b;
+      margin-bottom: 10px;
+    }
+    .alert-time {
+      color: #7f8c8d;
+      font-size: 0.9em;
+      margin-bottom: 10px;
+    }
+    .alert-headline {
+      font-weight: bold;
+      margin-bottom: 15px;
+    }
+    .warning-item {
+      margin-bottom: 10px;
+      padding-left: 10px;
+      border-left: 3px solid #e74c3c;
+    }
+    .loading, .error {
+      text-align: center;
+      padding: 20px;
+      color: #7f8c8d;
+    }
+    .error {
+      color: #c0392b;
+    }
+    .section {
+      margin-bottom: 40px;
+    }
+    .no-data {
+      font-style: italic;
+      color: #95a5a6;
+    }
+  </style>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
+</head>
+<body>
+  <h1>気象庁情報</h1>
+  <div id="loading" class="loading">データを読み込んでいます...</div>
+  <div id="heatstroke" class="section">
+    <h2>熱中症警戒アラート</h2>
+    <div id="heatstroke-content" class="no-data">データなし</div>
+  </div>
+  <div id="general" class="section">
+    <h2>全般気象情報</h2>
+    <div id="general-content" class="no-data">データなし</div>
+  </div>
+  <div id="warnings" class="section">
+    <h2>気象警報・注意報</h2>
+    <div id="warnings-content" class="no-data">警報の情報なし</div>
+  </div>
+  <div id="landslide" class="section">
+    <h2>土砂災害警戒情報</h2>
+    <div id="landslide-content" class="no-data">データなし</div>
+  </div>
+
+  <script>
+    async function fetchWeatherAlerts() {
+      const feedUrl = "https://www.data.jma.go.jp/developer/xml/feed/extra.xml";
+      const loadingDiv = document.getElementById('loading');
+
+      try {
+        // メインフィードの取得
+        const feedResponse = await fetch(feedUrl, { mode: 'cors' });
+        if (!feedResponse.ok) throw new Error(`フィード取得エラー: ${feedResponse.status}`);
+        const feedContent = await feedResponse.text();
+        const feedXml = new DOMParser().parseFromString(feedContent, 'text/xml');
+        const entries = feedXml.getElementsByTagNameNS('*', 'entry');
+
+        if (entries.length === 0) {
+          loadingDiv.innerHTML = '<div class="error">情報はありません。</div>';
+          return;
+        }
+
+        // 各カテゴリのデータを格納
+        const categories = {
+          heatstroke: [],
+          general: [],
+          warnings: [],
+          landslide: []
+        };
+
+        for (let entry of entries) {
+          const idElement = entry.getElementsByTagNameNS('*', 'id')[0];
+          if (!idElement) continue;
+          const detailLink = idElement.textContent;
+
+          // 詳細データの取得
+          try {
+            const detailResponse = await fetch(detailLink, { mode: 'cors' });
+            if (!detailResponse.ok) continue;
+            const detailContent = await detailResponse.text();
+            const detailXml = new DOMParser().parseFromString(detailContent, 'text/xml');
+            categorizeAlert(detailXml, categories);
+          } catch (e) {
+            console.error(`詳細データ取得エラー: ${detailLink}`, e);
+          }
+        }
+
+        // 各カテゴリの表示
+        displayCategory('heatstroke', categories.heatstroke);
+        displayCategory('general', categories.general);
+        displayCategory('warnings', categories.warnings);
+        displayCategory('landslide', categories.landslide);
+
+        loadingDiv.style.display = 'none';
+      } catch (e) {
+        loadingDiv.innerHTML = `<div class="error">エラー: ${e.message}</div>`;
+        console.error('エラー:', e);
+      }
+    }
+
+    function categorizeAlert(detailXml, categories) {
+      const control = detailXml.getElementsByTagNameNS('*', 'Control')[0];
+      if (!control) return;
+
+      const dateTime = control.getElementsByTagNameNS('*', 'DateTime')[0]?.textContent || '不明';
+      const head = detailXml.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Head')[0];
+      if (!head) return;
+
+      const title = head.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Title')[0]?.textContent || 'タイトルなし';
+      const headline = head.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Headline')[0];
+      const headlineText = headline?.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Text')[0]?.textContent || '';
+
+      const body = detailXml.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Body')[0];
+      const warningResults = {};
+      let hasWarning = false;
+
+      if (body) {
+        const warnings = body.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Warning');
+        for (let warning of warnings) {
+          const items = warning.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Item');
+          for (let item of items) {
+            const kinds = item.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Kind');
+            const area = item.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Area')[0];
+            const areaName = area?.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Name')[0]?.textContent || '不明';
+            for (let kind of kinds) {
+              const kindName = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Name')[0]?.textContent || '不明';
+              const status = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Status')[0]?.textContent || '不明';
+              const key = `《${kindName}》 [${status}]`;
+              if (!warningResults[key]) warningResults[key] = [];
+              warningResults[key].push(areaName);
+              if (kindName.includes('警報')) hasWarning = true;
+            }
+          }
+        }
+      }
+
+      // タイトルに基づいて分類
+      const alertData = { title, dateTime, headlineText, warningResults };
+      if (title.includes('熱中症警戒アラート')) {
+        categories.heatstroke.push(alertData);
+      } else if (title.includes('全般気象情報')) {
+        categories.general.push(alertData);
+      } else if (title.includes('土砂災害警戒情報')) {
+        categories.landslide.push(alertData);
+      } else if (hasWarning) {
+        categories.warnings.push(alertData);
+      }
+    }
+
+    function displayCategory(categoryId, alerts) {
+      const contentDiv = document.getElementById(`${categoryId}-content`);
+      if (alerts.length === 0) {
+        contentDiv.innerHTML = categoryId === 'warnings' ? '<div class="no-data">警報の情報なし</div>' : '<div class="no-data">データなし</div>';
+        return;
+      }
+
+      contentDiv.innerHTML = '';
+      alerts.forEach(alert => {
+        const container = document.createElement('div');
+        container.className = 'alert-container';
+        container.innerHTML = `
+          <div class="alert-title">${alert.title}</div>
+          <div class="alert-time">発表: ${alert.dateTime}</div>
+          <div class="alert-headline">${alert.headlineText}</div>
+        `;
+
+        for (const [kindStatus, areas] of Object.entries(alert.warningResults)) {
+          const warningDiv = document.createElement('div');
+          warningDiv.className = 'warning-item';
+          warningDiv.textContent = `${kindStatus} ${areas.join('／')}`;
+          container.appendChild(warningDiv);
+        }
+
+        contentDiv.appendChild(container);
+      });
+    }
+
+    // ページ読み込み時にデータを取得
+    window.onload = fetchWeatherAlerts;
+  </script>
+</body>
+</html>
