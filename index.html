@@ -706,15 +706,20 @@
             // バックグラウンドで最新データを取得
             this.fetchLatestDataInBackground();
             return;
+            // バックグラウンドで最新データを取得
+            this.fetchLatestDataInBackground();
+            return;
           this.showError(error.message);
         }
       }
 
       async fetchLatestDataInBackground() {
         try {
+      async fetchLatestDataInBackground() {
+        try {
       getXmlCache() {
         try {
-          const cached = localStorage.getItem(this.xmlCacheKey);
+          const cached = localStorage.getItem('jma-xml-cache');
           if (!cached) return null;
 
           return JSON.parse(cached);
@@ -726,14 +731,14 @@
 
       setXmlCache(cache) {
         try {
-          localStorage.setItem(this.xmlCacheKey, JSON.stringify(cache));
+          localStorage.setItem('jma-xml-cache', JSON.stringify(cache));
         } catch (error) {
           console.warn('XMLキャッシュ保存エラー:', error);
         }
       }
 
       isXmlCacheValid(timestamp) {
-        return Date.now() - timestamp < this.xmlCacheExpiry;
+        return Date.now() - timestamp < (10 * 60 * 1000); // 10分
       }
 
       updateCacheStatus(message) {
