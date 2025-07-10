@@ -444,7 +444,7 @@
       <section id="warnings" class="section" style="display: none;">
         <div class="section-header">
           <div class="section-icon">⚠️</div>
-          <h2 class="section-title">気象警報・注意報</h2>
+          <h2 class="section-title">気象警報</h2>
           <div id="warnings-badge" class="section-badge" style="display: none;">0</div>
         </div>
         <div id="warnings-content"></div>
@@ -599,12 +599,15 @@
               for (let kind of kinds) {
                 const kindName = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Name')[0]?.textContent || '不明';
                 const status = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Status')[0]?.textContent || '不明';
-                const key = `${kindName} [${status}]`;
                 
-                if (!warningResults[key]) warningResults[key] = [];
-                warningResults[key].push(areaName);
-                
-                if (kindName.includes('警報')) hasWarning = true;
+                // 警報のみを表示（注意報は除外）
+                if (kindName.includes('警報')) {
+                  const key = `${kindName} [${status}]`;
+                  
+                  if (!warningResults[key]) warningResults[key] = [];
+                  warningResults[key].push(areaName);
+                  hasWarning = true;
+                }
               }
             }
           }
@@ -635,9 +638,6 @@
       determineSeverity(title, warningResults) {
         if (title.includes('警報') || Object.keys(warningResults).some(key => key.includes('警報'))) {
           return 'critical';
-        }
-        if (title.includes('注意報') || Object.keys(warningResults).some(key => key.includes('注意報'))) {
-          return 'warning';
         }
         if (title.includes('情報')) {
           return 'info';
@@ -763,11 +763,17 @@
       }
 
       async copyAlertText(alert, button) {
+        const warningTexts = Object.entries(alert.warningResults).map(([kind, areas]) => {
+          // 警報名を《》で囲む
+          const warningName = kind.replace(/\s*\[.*?\]\s*/, ''); // [発表]などの部分を除去
+          return `《${warningName}》 ${areas.join(' / ')}`;
+        });
+
         const textToCopy = [
           alert.title,
           `発表: ${alert.dateTime}`,
           alert.headlineText,
-          ...Object.entries(alert.warningResults).map(([kind, areas]) => `${kind} ${areas.join(' / ')}`)
+          ...warningTexts
         ].filter(Boolean).join('\n');
 
         try {
@@ -792,7 +798,7 @@
         this.loadingElement.innerHTML = `
           <div class="no-data">
             <div class="no-data-icon">☀️</div>
-            <div>現在、気象警報・注意報は発表されていません</div>
+            <div>現在、気象警報は発表されていません</div>
           </div>
         `;
       }
