@@ -5,339 +5,818 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>気象庁情報</title>
   <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    :root {
+      --primary-blue: #007AFF;
+      --secondary-blue: #5AC8FA;
+      --background-primary: #F2F2F7;
+      --background-secondary: #FFFFFF;
+      --background-tertiary: #F8F9FA;
+      --text-primary: #000000;
+      --text-secondary: #8E8E93;
+      --text-tertiary: #C7C7CC;
+      --separator: #C6C6C8;
+      --red: #FF3B30;
+      --orange: #FF9500;
+      --yellow: #FFCC00;
+      --green: #34C759;
+      --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+      --card-shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.15);
+      --border-radius: 12px;
+      --border-radius-large: 16px;
+      --spacing-xs: 4px;
+      --spacing-sm: 8px;
+      --spacing-md: 16px;
+      --spacing-lg: 24px;
+      --spacing-xl: 32px;
+    }
+
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --background-primary: #000000;
+        --background-secondary: #1C1C1E;
+        --background-tertiary: #2C2C2E;
+        --text-primary: #FFFFFF;
+        --text-secondary: #8E8E93;
+        --text-tertiary: #48484A;
+        --separator: #38383A;
+        --card-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+        --card-shadow-hover: 0 4px 20px rgba(0, 0, 0, 0.4);
+      }
+    }
+
     body {
-      font-family: 'Noto Sans JP', sans-serif;
-      max-width: 1000px;
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
+      background-color: var(--background-primary);
+      color: var(--text-primary);
+      line-height: 1.5;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+
+    .app-container {
+      min-height: 100vh;
+      padding-bottom: env(safe-area-inset-bottom);
+    }
+
+    .header {
+      background: var(--background-secondary);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border-bottom: 0.5px solid var(--separator);
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      padding: var(--spacing-md) var(--spacing-lg);
+      padding-top: max(var(--spacing-md), env(safe-area-inset-top));
+    }
+
+    .header-title {
+      font-size: 34px;
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      text-align: center;
+    }
+
+    .header-subtitle {
+      font-size: 17px;
+      color: var(--text-secondary);
+      text-align: center;
+      margin-top: var(--spacing-xs);
+    }
+
+    .content {
+      padding: var(--spacing-lg);
+      max-width: 428px;
       margin: 0 auto;
-      padding: 20px;
-      background-color: #f5f5f5;
-      color: #333;
-      line-height: 1.6;
     }
-    h1 {
-      text-align: center;
-      color: #2c3e50;
-      font-size: 2.5rem;
-      margin-bottom: 2rem;
-    }
-    h2 {
-      color: #34495e;
-      border-bottom: 2px solid #3498db;
-      padding-bottom: 0.5rem;
-      margin-top: 2rem;
-      font-size: 1.8rem;
-    }
-    .alert-container {
-      background: white;
-      border-radius: 8px;
-      padding: 1.5rem;
-      margin-bottom: 1.5rem;
-      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-      transition: transform 0.2s ease-in-out;
-    }
-    .alert-container:hover {
-      transform: translateY(-5px);
-    }
-    .alert-title {
-      font-size: 1.5rem;
-      color: #c0392b;
-      margin-bottom: 0.5rem;
-    }
-    .alert-time {
-      color: #7f8c8d;
-      font-size: 0.9rem;
-      margin-bottom: 0.5rem;
-    }
-    .alert-headline {
-      font-weight: bold;
-      margin-bottom: 1rem;
-    }
-    .warning-item {
-      margin-bottom: 0.5rem;
-      padding-left: 0.75rem;
-      border-left: 3px solid #e74c3c;
-    }
-    .copy-button {
-      display: inline-block;
-      padding: 0.5rem 1rem;
-      background-color: #3498db;
-      color: white;
-      border: none;
-      border-radius: 4px;
-      cursor: pointer;
-      font-size: 0.9rem;
-      margin-top: 0.5rem;
-      transition: background-color 0.2s;
-    }
-    .copy-button:hover {
-      background-color: #2980b9;
-    }
-    .copy-button.copied {
-      background-color: #27ae60;
-    }
-    .loading {
-      text-align: center;
-      padding: 2rem;
-      color: #7f8c8d;
+
+    .loading-container {
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 1rem;
+      justify-content: center;
+      padding: var(--spacing-xl);
+      min-height: 200px;
     }
-    .spinner {
-      border: 4px solid #f3f3f3;
-      border-top: 4px solid #3498db;
+
+    .loading-spinner {
+      width: 32px;
+      height: 32px;
+      border: 2px solid var(--text-tertiary);
+      border-top: 2px solid var(--primary-blue);
       border-radius: 50%;
-      width: 40px;
-      height: 40px;
       animation: spin 1s linear infinite;
+      margin-bottom: var(--spacing-md);
     }
+
+    .loading-text {
+      font-size: 17px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
     @keyframes spin {
       0% { transform: rotate(0deg); }
       100% { transform: rotate(360deg); }
     }
-    .error {
-      text-align: center;
-      padding: 2rem;
-      color: #c0392b;
-    }
+
     .section {
-      margin-bottom: 2.5rem;
+      margin-bottom: var(--spacing-xl);
     }
+
+    .section-header {
+      display: flex;
+      align-items: center;
+      margin-bottom: var(--spacing-md);
+      padding: 0 var(--spacing-xs);
+    }
+
+    .section-icon {
+      width: 24px;
+      height: 24px;
+      margin-right: var(--spacing-sm);
+      opacity: 0.8;
+    }
+
+    .section-title {
+      font-size: 22px;
+      font-weight: 600;
+      letter-spacing: -0.3px;
+    }
+
+    .section-badge {
+      background: var(--red);
+      color: white;
+      font-size: 12px;
+      font-weight: 600;
+      padding: 2px 6px;
+      border-radius: 8px;
+      margin-left: auto;
+      min-width: 20px;
+      text-align: center;
+    }
+
+    .alert-card {
+      background: var(--background-secondary);
+      border-radius: var(--border-radius-large);
+      box-shadow: var(--card-shadow);
+      margin-bottom: var(--spacing-md);
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+      border: 0.5px solid var(--separator);
+    }
+
+    .alert-card:hover {
+      box-shadow: var(--card-shadow-hover);
+      transform: translateY(-2px);
+    }
+
+    .alert-card:active {
+      transform: translateY(0);
+      transition: transform 0.1s;
+    }
+
+    .alert-header {
+      padding: var(--spacing-md) var(--spacing-lg);
+      border-bottom: 0.5px solid var(--separator);
+    }
+
+    .alert-title {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: var(--spacing-xs);
+      line-height: 1.3;
+    }
+
+    .alert-time {
+      font-size: 13px;
+      color: var(--text-secondary);
+      font-weight: 500;
+    }
+
+    .alert-content {
+      padding: var(--spacing-md) var(--spacing-lg);
+    }
+
+    .alert-headline {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: var(--spacing-md);
+      line-height: 1.4;
+      color: var(--text-primary);
+    }
+
+    .warning-list {
+      margin-bottom: var(--spacing-md);
+    }
+
+    .warning-item {
+      display: flex;
+      align-items: flex-start;
+      padding: var(--spacing-sm) 0;
+      border-bottom: 0.5px solid var(--separator);
+    }
+
+    .warning-item:last-child {
+      border-bottom: none;
+      padding-bottom: 0;
+    }
+
+    .warning-indicator {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--red);
+      margin-right: var(--spacing-sm);
+      margin-top: 6px;
+      flex-shrink: 0;
+    }
+
+    .warning-text {
+      font-size: 15px;
+      line-height: 1.4;
+      flex: 1;
+    }
+
+    .warning-kind {
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .warning-areas {
+      color: var(--text-secondary);
+      margin-top: 2px;
+    }
+
+    .copy-button {
+      background: var(--primary-blue);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      padding: var(--spacing-sm) var(--spacing-md);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      width: 100%;
+      margin-top: var(--spacing-sm);
+    }
+
+    .copy-button:hover {
+      background: #0056CC;
+      transform: translateY(-1px);
+    }
+
+    .copy-button:active {
+      transform: translateY(0);
+      background: #004499;
+    }
+
+    .copy-button.copied {
+      background: var(--green);
+    }
+
     .no-data {
-      font-style: italic;
-      color: #95a5a6;
+      text-align: center;
+      padding: var(--spacing-xl);
+      color: var(--text-secondary);
+      font-size: 17px;
+      background: var(--background-secondary);
+      border-radius: var(--border-radius-large);
+      border: 0.5px solid var(--separator);
     }
-    @media (max-width: 768px) {
-      body {
-        padding: 1rem;
-      }
-      h1 {
-        font-size: 1.8rem;
-      }
-      h2 {
-        font-size: 1.4rem;
-      }
-      .alert-container {
-        padding: 1rem;
-      }
-      .alert-title {
-        font-size: 1.2rem;
-      }
-      .alert-time, .warning-item, .copy-button {
-        font-size: 0.8rem;
-      }
+
+    .no-data-icon {
+      font-size: 48px;
+      margin-bottom: var(--spacing-md);
+      opacity: 0.5;
     }
+
+    .error-container {
+      text-align: center;
+      padding: var(--spacing-xl);
+      color: var(--red);
+      background: var(--background-secondary);
+      border-radius: var(--border-radius-large);
+      border: 0.5px solid var(--separator);
+    }
+
+    .error-icon {
+      font-size: 48px;
+      margin-bottom: var(--spacing-md);
+      opacity: 0.8;
+    }
+
+    .error-title {
+      font-size: 17px;
+      font-weight: 600;
+      margin-bottom: var(--spacing-sm);
+    }
+
+    .error-message {
+      font-size: 15px;
+      color: var(--text-secondary);
+      line-height: 1.4;
+    }
+
+    .refresh-button {
+      background: var(--primary-blue);
+      color: white;
+      border: none;
+      border-radius: var(--border-radius);
+      padding: var(--spacing-sm) var(--spacing-md);
+      font-size: 15px;
+      font-weight: 600;
+      cursor: pointer;
+      margin-top: var(--spacing-md);
+      transition: all 0.2s ease;
+    }
+
+    .refresh-button:hover {
+      background: #0056CC;
+    }
+
+    /* Responsive Design */
     @media (max-width: 480px) {
-      h1 {
-        font-size: 1.5rem;
+      .content {
+        padding: var(--spacing-md);
       }
-      h2 {
-        font-size: 1.2rem;
+      
+      .header {
+        padding: var(--spacing-md);
+        padding-top: max(var(--spacing-md), env(safe-area-inset-top));
       }
-      .alert-container {
-        padding: 0.75rem;
+      
+      .header-title {
+        font-size: 28px;
+      }
+      
+      .alert-header,
+      .alert-content {
+        padding: var(--spacing-md);
       }
     }
+
+    @media (min-width: 768px) {
+      .content {
+        max-width: 768px;
+        padding: var(--spacing-xl);
+      }
+      
+      .alert-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+        gap: var(--spacing-lg);
+      }
+    }
+
+    /* Animations */
+    .fade-in {
+      animation: fadeIn 0.5s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .slide-up {
+      animation: slideUp 0.3s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+    }
+
+    @keyframes slideUp {
+      from {
+        opacity: 0;
+        transform: translateY(30px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Status indicators */
+    .status-critical { --warning-color: var(--red); }
+    .status-warning { --warning-color: var(--orange); }
+    .status-info { --warning-color: var(--primary-blue); }
+    .status-success { --warning-color: var(--green); }
+
+    .status-critical .warning-indicator { background: var(--red); }
+    .status-warning .warning-indicator { background: var(--orange); }
+    .status-info .warning-indicator { background: var(--primary-blue); }
+    .status-success .warning-indicator { background: var(--green); }
   </style>
-  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
-  <h1>気象庁情報</h1>
-  <div id="loading" class="loading">
-    <div class="spinner"></div>
-    <span>データを読み込んでいます...</span>
-  </div>
-  <div id="heatstroke" class="section">
-    <h2>熱中症警戒アラート</h2>
-    <div id="heatstroke-content" class="no-data">データなし</div>
-  </div>
-  <div id="general" class="section">
-    <h2>全般気象情報</h2>
-    <div id="general-content" class="no-data">データなし</div>
-  </div>
-  <div id="warnings" class="section">
-    <h2>気象警報・注意報</h2>
-    <div id="warnings-content" class="no-data">警報の情報なし</div>
-  </div>
-  <div id="landslide" class="section">
-    <h2>土砂災害警戒情報</h2>
-    <div id="landslide-content" class="no-data">データなし</div>
-  </div>
-  <div id="heavy-rain" class="section">
-    <h2>記録的短時間大雨情報</h2>
-    <div id="heavy-rain-content" class="no-data">データなし</div>
+  <div class="app-container">
+    <header class="header">
+      <h1 class="header-title">気象情報</h1>
+      <p class="header-subtitle">気象庁からの最新情報</p>
+    </header>
+
+    <main class="content">
+      <div id="loading" class="loading-container">
+        <div class="loading-spinner"></div>
+        <span class="loading-text">情報を取得中...</span>
+      </div>
+
+      <section id="heatstroke" class="section" style="display: none;">
+        <div class="section-header">
+          <div class="section-icon">🌡️</div>
+          <h2 class="section-title">熱中症警戒アラート</h2>
+          <div id="heatstroke-badge" class="section-badge" style="display: none;">0</div>
+        </div>
+        <div id="heatstroke-content"></div>
+      </section>
+
+      <section id="warnings" class="section" style="display: none;">
+        <div class="section-header">
+          <div class="section-icon">⚠️</div>
+          <h2 class="section-title">気象警報・注意報</h2>
+          <div id="warnings-badge" class="section-badge" style="display: none;">0</div>
+        </div>
+        <div id="warnings-content"></div>
+      </section>
+
+      <section id="landslide" class="section" style="display: none;">
+        <div class="section-header">
+          <div class="section-icon">🏔️</div>
+          <h2 class="section-title">土砂災害警戒情報</h2>
+          <div id="landslide-badge" class="section-badge" style="display: none;">0</div>
+        </div>
+        <div id="landslide-content"></div>
+      </section>
+
+      <section id="heavy-rain" class="section" style="display: none;">
+        <div class="section-header">
+          <div class="section-icon">🌧️</div>
+          <h2 class="section-title">記録的短時間大雨情報</h2>
+          <div id="heavy-rain-badge" class="section-badge" style="display: none;">0</div>
+        </div>
+        <div id="heavy-rain-content"></div>
+      </section>
+
+      <section id="general" class="section" style="display: none;">
+        <div class="section-header">
+          <div class="section-icon">📋</div>
+          <h2 class="section-title">全般気象情報</h2>
+          <div id="general-badge" class="section-badge" style="display: none;">0</div>
+        </div>
+        <div id="general-content"></div>
+      </section>
+    </main>
   </div>
 
   <script>
-    async function fetchWeatherAlerts() {
-      const feedUrl = "https://www.data.jma.go.jp/developer/xml/feed/extra.xml";
-      const loadingDiv = document.getElementById('loading');
-
-      try {
-        const feedResponse = await fetch(feedUrl, { mode: 'cors' });
-        if (!feedResponse.ok) throw new Error(`フィード取得エラー: ${feedResponse.status} ${feedResponse.statusText}`);
-        const feedContent = await feedResponse.text();
-        const feedXml = new DOMParser().parseFromString(feedContent, 'text/xml');
-        const entries = feedXml.getElementsByTagNameNS('*', 'entry');
-
-        if (entries.length === 0) {
-          loadingDiv.innerHTML = '<div class="error">情報はありません。</div>';
-          return;
-        }
-
-        const categories = {
+    class WeatherApp {
+      constructor() {
+        this.loadingElement = document.getElementById('loading');
+        this.categories = {
           heatstroke: [],
           general: [],
           warnings: [],
           landslide: [],
           heavyRain: []
         };
-
-        for (let entry of entries) {
-          const idElement = entry.getElementsByTagNameNS('*', 'id')[0];
-          if (!idElement) continue;
-          const detailLink = idElement.textContent;
-
-          try {
-            const detailResponse = await fetch(detailLink, { mode: 'cors' });
-            if (!detailResponse.ok) {
-              console.error(`詳細データ取得エラー: ${detailLink} - ステータス: ${detailResponse.status} ${detailResponse.statusText}`);
-              continue;
-            }
-            const detailContent = await detailResponse.text();
-            const detailXml = new DOMParser().parseFromString(detailContent, 'text/xml');
-            if (detailXml.documentElement.nodeName === 'parsererror') {
-              console.error(`XMLパースエラー: ${detailLink}`);
-              continue;
-            }
-            categorizeAlert(detailXml, categories);
-          } catch (e) {
-            console.error(`詳細データ取得エラー: ${detailLink} - ${e.message}`);
-            continue;
-          }
-        }
-
-        displayCategory('heatstroke', categories.heatstroke);
-        displayCategory('general', categories.general);
-        displayCategory('warnings', categories.warnings);
-        displayCategory('landslide', categories.landslide);
-        displayCategory('heavy-rain', categories.heavyRain);
-
-        loadingDiv.style.display = 'none';
-      } catch (e) {
-        loadingDiv.innerHTML = `<div class="error">エラー: ${e.message}。サーバーにアクセスできない可能性があります。後でもう一度お試しください。</div>`;
-        console.error('エラー:', e);
-      }
-    }
-
-    function categorizeAlert(detailXml, categories) {
-      const control = detailXml.getElementsByTagNameNS('*', 'Control')[0];
-      if (!control) {
-        console.warn('Control要素が見つかりません');
-        return;
+        this.init();
       }
 
-      const dateTime = control.getElementsByTagNameNS('*', 'DateTime')[0]?.textContent || '不明';
-      const head = detailXml.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Head')[0];
-      if (!head) {
-        console.warn('Head要素が見つかりません');
-        return;
-      }
-
-      const title = head.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Title')[0]?.textContent || 'タイトルなし';
-      const headline = head.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Headline')[0];
-      const headlineText = headline?.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Text')[0]?.textContent || '';
-
-      const body = detailXml.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Body')[0];
-      const warningResults = {};
-      let hasWarning = false;
-
-      if (body) {
-        const warnings = body.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Warning');
-        for (let warning of warnings) {
-          const items = warning.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Item');
-          for (let item of items) {
-            const kinds = item.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Kind');
-            const area = item.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Area')[0];
-            const areaName = area?.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Name')[0]?.textContent || '不明';
-            for (let kind of kinds) {
-              const kindName = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Name')[0]?.textContent || '不明';
-              const status = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Status')[0]?.textContent || '不明';
-              const key = `《${kindName}》 [${status}]`;
-              if (!warningResults[key]) warningResults[key] = [];
-              warningResults[key].push(areaName);
-              if (kindName.includes('警報')) hasWarning = true;
-            }
-          }
+      async init() {
+        try {
+          await this.fetchWeatherAlerts();
+        } catch (error) {
+          this.showError(error.message);
         }
       }
 
-      const alertData = { title, dateTime, headlineText, warningResults };
-      if (title.includes('熱中症警戒アラート')) {
-        categories.heatstroke.push(alertData);
-      } else if (title.includes('全般気象情報')) {
-        categories.general.push(alertData);
-      } else if (title.includes('土砂災害警戒情報')) {
-        categories.landslide.push(alertData);
-      } else if (title.includes('記録的短時間大雨情報')) {
-        categories.heavyRain.push(alertData);
-      } else if (hasWarning) {
-        categories.warnings.push(alertData);
-      }
-    }
+      async fetchWeatherAlerts() {
+        const feedUrl = "https://www.data.jma.go.jp/developer/xml/feed/extra.xml";
 
-    function displayCategory(categoryId, alerts) {
-      const contentDiv = document.getElementById(`${categoryId}-content`);
-      if (alerts.length === 0) {
-        contentDiv.innerHTML = categoryId === 'warnings' ? '<div class="no-data">警報の情報なし</div>' : '<div class="no-data">データなし</div>';
-        return;
+        try {
+          const feedResponse = await fetch(feedUrl, { mode: 'cors' });
+          if (!feedResponse.ok) {
+            throw new Error(`データの取得に失敗しました (${feedResponse.status})`);
+          }
+
+          const feedContent = await feedResponse.text();
+          const feedXml = new DOMParser().parseFromString(feedContent, 'text/xml');
+          const entries = feedXml.getElementsByTagNameNS('*', 'entry');
+
+          if (entries.length === 0) {
+            this.showNoData();
+            return;
+          }
+
+          // Process entries with progress indication
+          const totalEntries = entries.length;
+          let processedEntries = 0;
+
+          for (let entry of entries) {
+            const idElement = entry.getElementsByTagNameNS('*', 'id')[0];
+            if (!idElement) continue;
+            
+            const detailLink = idElement.textContent;
+            
+            try {
+              const detailResponse = await fetch(detailLink, { mode: 'cors' });
+              if (!detailResponse.ok) {
+                console.warn(`詳細データ取得エラー: ${detailLink}`);
+                continue;
+              }
+              
+              const detailContent = await detailResponse.text();
+              const detailXml = new DOMParser().parseFromString(detailContent, 'text/xml');
+              
+              if (detailXml.documentElement.nodeName === 'parsererror') {
+                console.warn(`XMLパースエラー: ${detailLink}`);
+                continue;
+              }
+              
+              this.categorizeAlert(detailXml);
+              
+              processedEntries++;
+              this.updateLoadingProgress(processedEntries, totalEntries);
+              
+            } catch (e) {
+              console.warn(`詳細データ取得エラー: ${detailLink} - ${e.message}`);
+              continue;
+            }
+          }
+
+          this.displayAllCategories();
+          this.hideLoading();
+
+        } catch (error) {
+          throw new Error(`サーバーに接続できませんでした。しばらく時間をおいて再度お試しください。`);
+        }
       }
 
-      contentDiv.innerHTML = '';
-      alerts.forEach(alert => {
+      updateLoadingProgress(processed, total) {
+        const percentage = Math.round((processed / total) * 100);
+        const loadingText = document.querySelector('.loading-text');
+        if (loadingText) {
+          loadingText.textContent = `情報を取得中... (${percentage}%)`;
+        }
+      }
+
+      categorizeAlert(detailXml) {
+        const control = detailXml.getElementsByTagNameNS('*', 'Control')[0];
+        if (!control) return;
+
+        const dateTime = control.getElementsByTagNameNS('*', 'DateTime')[0]?.textContent || '不明';
+        const head = detailXml.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Head')[0];
+        if (!head) return;
+
+        const title = head.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Title')[0]?.textContent || 'タイトルなし';
+        const headline = head.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Headline')[0];
+        const headlineText = headline?.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Text')[0]?.textContent || '';
+
+        const body = detailXml.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Body')[0];
+        const warningResults = {};
+        let hasWarning = false;
+
+        if (body) {
+          const warnings = body.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Warning');
+          for (let warning of warnings) {
+            const items = warning.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Item');
+            for (let item of items) {
+              const kinds = item.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Kind');
+              const area = item.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Area')[0];
+              const areaName = area?.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Name')[0]?.textContent || '不明';
+              
+              for (let kind of kinds) {
+                const kindName = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Name')[0]?.textContent || '不明';
+                const status = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Status')[0]?.textContent || '不明';
+                const key = `${kindName} [${status}]`;
+                
+                if (!warningResults[key]) warningResults[key] = [];
+                warningResults[key].push(areaName);
+                
+                if (kindName.includes('警報')) hasWarning = true;
+              }
+            }
+          }
+        }
+
+        const alertData = { 
+          title, 
+          dateTime: this.formatDateTime(dateTime), 
+          headlineText, 
+          warningResults,
+          severity: this.determineSeverity(title, warningResults)
+        };
+
+        // Categorize alerts
+        if (title.includes('熱中症警戒アラート')) {
+          this.categories.heatstroke.push(alertData);
+        } else if (title.includes('全般気象情報')) {
+          this.categories.general.push(alertData);
+        } else if (title.includes('土砂災害警戒情報')) {
+          this.categories.landslide.push(alertData);
+        } else if (title.includes('記録的短時間大雨情報')) {
+          this.categories.heavyRain.push(alertData);
+        } else if (hasWarning) {
+          this.categories.warnings.push(alertData);
+        }
+      }
+
+      determineSeverity(title, warningResults) {
+        if (title.includes('警報') || Object.keys(warningResults).some(key => key.includes('警報'))) {
+          return 'critical';
+        }
+        if (title.includes('注意報') || Object.keys(warningResults).some(key => key.includes('注意報'))) {
+          return 'warning';
+        }
+        if (title.includes('情報')) {
+          return 'info';
+        }
+        return 'info';
+      }
+
+      formatDateTime(dateTime) {
+        try {
+          const date = new Date(dateTime);
+          return date.toLocaleString('ja-JP', {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+          });
+        } catch {
+          return dateTime;
+        }
+      }
+
+      displayAllCategories() {
+        const categoryOrder = ['warnings', 'heatstroke', 'landslide', 'heavy-rain', 'general'];
+        
+        categoryOrder.forEach((categoryId, index) => {
+          setTimeout(() => {
+            this.displayCategory(categoryId, this.categories[categoryId.replace('-', '')]);
+          }, index * 100);
+        });
+      }
+
+      displayCategory(categoryId, alerts) {
+        const section = document.getElementById(categoryId);
+        const contentDiv = document.getElementById(`${categoryId}-content`);
+        const badge = document.getElementById(`${categoryId}-badge`);
+
+        if (alerts.length === 0) {
+          section.style.display = 'none';
+          return;
+        }
+
+        // Show section and update badge
+        section.style.display = 'block';
+        section.classList.add('fade-in');
+        
+        if (badge) {
+          badge.textContent = alerts.length;
+          badge.style.display = 'block';
+        }
+
+        // Sort alerts by severity and date
+        alerts.sort((a, b) => {
+          const severityOrder = { critical: 0, warning: 1, info: 2 };
+          const severityDiff = severityOrder[a.severity] - severityOrder[b.severity];
+          if (severityDiff !== 0) return severityDiff;
+          return new Date(b.dateTime) - new Date(a.dateTime);
+        });
+
+        contentDiv.innerHTML = '';
+        
+        alerts.forEach((alert, index) => {
+          setTimeout(() => {
+            const alertElement = this.createAlertCard(alert);
+            contentDiv.appendChild(alertElement);
+          }, index * 50);
+        });
+      }
+
+      createAlertCard(alert) {
         const container = document.createElement('div');
-        container.className = 'alert-container';
-        container.innerHTML = `
+        container.className = `alert-card slide-up status-${alert.severity}`;
+        
+        const header = document.createElement('div');
+        header.className = 'alert-header';
+        header.innerHTML = `
           <div class="alert-title">${alert.title}</div>
-          <div class="alert-time">発表: ${alert.dateTime}</div>
-          <div class="alert-headline">${alert.headlineText}</div>
+          <div class="alert-time">${alert.dateTime}</div>
         `;
 
-        for (const [kindStatus, areas] of Object.entries(alert.warningResults)) {
-          const warningDiv = document.createElement('div');
-          warningDiv.className = 'warning-item';
-          warningDiv.textContent = `${kindStatus} ${areas.join('／')}`;
-          container.appendChild(warningDiv);
+        const content = document.createElement('div');
+        content.className = 'alert-content';
+        
+        if (alert.headlineText) {
+          const headline = document.createElement('div');
+          headline.className = 'alert-headline';
+          headline.textContent = alert.headlineText;
+          content.appendChild(headline);
+        }
+
+        if (Object.keys(alert.warningResults).length > 0) {
+          const warningList = document.createElement('div');
+          warningList.className = 'warning-list';
+          
+          Object.entries(alert.warningResults).forEach(([kindStatus, areas]) => {
+            const warningItem = document.createElement('div');
+            warningItem.className = 'warning-item';
+            
+            warningItem.innerHTML = `
+              <div class="warning-indicator"></div>
+              <div class="warning-text">
+                <div class="warning-kind">${kindStatus}</div>
+                <div class="warning-areas">${areas.join(' / ')}</div>
+              </div>
+            `;
+            
+            warningList.appendChild(warningItem);
+          });
+          
+          content.appendChild(warningList);
         }
 
         const copyButton = document.createElement('button');
         copyButton.className = 'copy-button';
         copyButton.textContent = 'テキストをコピー';
-        copyButton.onclick = () => {
-          const textToCopy = `${alert.title}\n発表: ${alert.dateTime}\n${alert.headlineText}\n${Object.entries(alert.warningResults).map(([kind, areas]) => `${kind} ${areas.join('／')}`).join('\n')}`;
-          navigator.clipboard.writeText(textToCopy).then(() => {
-            copyButton.textContent = 'コピーしました！';
-            copyButton.className = 'copy-button copied';
-            setTimeout(() => {
-              copyButton.textContent = 'テキストをコピー';
-              copyButton.className = 'copy-button';
-            }, 2000);
-          }).catch(err => {
-            console.error('コピー失敗:', err);
-            copyButton.textContent = 'コピー失敗';
-            setTimeout(() => {
-              copyButton.textContent = 'テキストをコピー';
-            }, 2000);
-          });
-        };
-        container.appendChild(copyButton);
+        copyButton.onclick = () => this.copyAlertText(alert, copyButton);
+        content.appendChild(copyButton);
 
-        contentDiv.appendChild(container);
-      });
+        container.appendChild(header);
+        container.appendChild(content);
+        
+        return container;
+      }
+
+      async copyAlertText(alert, button) {
+        const textToCopy = [
+          alert.title,
+          `発表: ${alert.dateTime}`,
+          alert.headlineText,
+          ...Object.entries(alert.warningResults).map(([kind, areas]) => `${kind} ${areas.join(' / ')}`)
+        ].filter(Boolean).join('\n');
+
+        try {
+          await navigator.clipboard.writeText(textToCopy);
+          button.textContent = 'コピーしました！';
+          button.classList.add('copied');
+          
+          setTimeout(() => {
+            button.textContent = 'テキストをコピー';
+            button.classList.remove('copied');
+          }, 2000);
+        } catch (err) {
+          console.error('コピー失敗:', err);
+          button.textContent = 'コピー失敗';
+          setTimeout(() => {
+            button.textContent = 'テキストをコピー';
+          }, 2000);
+        }
+      }
+
+      showNoData() {
+        this.loadingElement.innerHTML = `
+          <div class="no-data">
+            <div class="no-data-icon">☀️</div>
+            <div>現在、気象警報・注意報は発表されていません</div>
+          </div>
+        `;
+      }
+
+      showError(message) {
+        this.loadingElement.innerHTML = `
+          <div class="error-container">
+            <div class="error-icon">⚠️</div>
+            <div class="error-title">接続エラー</div>
+            <div class="error-message">${message}</div>
+            <button class="refresh-button" onclick="location.reload()">再読み込み</button>
+          </div>
+        `;
+      }
+
+      hideLoading() {
+        this.loadingElement.style.display = 'none';
+      }
     }
 
-    window.onload = fetchWeatherAlerts;
+    // Initialize app when DOM is loaded
+    document.addEventListener('DOMContentLoaded', () => {
+      new WeatherApp();
+    });
   </script>
 </body>
 </html>
