@@ -12,64 +12,142 @@
       padding: 20px;
       background-color: #f5f5f5;
       color: #333;
+      line-height: 1.6;
     }
     h1 {
       text-align: center;
       color: #2c3e50;
+      font-size: 2.5rem;
+      margin-bottom: 2rem;
     }
     h2 {
       color: #34495e;
       border-bottom: 2px solid #3498db;
-      padding-bottom: 5px;
-      margin-top: 30px;
+      padding-bottom: 0.5rem;
+      margin-top: 2rem;
+      font-size: 1.8rem;
     }
     .alert-container {
       background: white;
       border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+      transition: transform 0.2s ease-in-out;
+    }
+    .alert-container:hover {
+      transform: translateY(-5px);
     }
     .alert-title {
-      font-size: 1.5em;
+      font-size: 1.5rem;
       color: #c0392b;
-      margin-bottom: 10px;
+      margin-bottom: 0.5rem;
     }
     .alert-time {
       color: #7f8c8d;
-      font-size: 0.9em;
-      margin-bottom: 10px;
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
     }
     .alert-headline {
       font-weight: bold;
-      margin-bottom: 15px;
+      margin-bottom: 1rem;
     }
     .warning-item {
-      margin-bottom: 10px;
-      padding-left: 10px;
+      margin-bottom: 0.5rem;
+      padding-left: 0.75rem;
       border-left: 3px solid #e74c3c;
     }
-    .loading, .error {
+    .copy-button {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 0.9rem;
+      margin-top: 0.5rem;
+      transition: background-color 0.2s;
+    }
+    .copy-button:hover {
+      background-color: #2980b9;
+    }
+    .copy-button.copied {
+      background-color: #27ae60;
+    }
+    .loading {
       text-align: center;
-      padding: 20px;
+      padding: 2rem;
       color: #7f8c8d;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1rem;
+    }
+    .spinner {
+      border: 4px solid #f3f3f3;
+      border-top: 4px solid #3498db;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
     .error {
+      text-align: center;
+      padding: 2rem;
       color: #c0392b;
     }
     .section {
-      margin-bottom: 40px;
+      margin-bottom: 2.5rem;
     }
     .no-data {
       font-style: italic;
       color: #95a5a6;
+    }
+    @media (max-width: 768px) {
+      body {
+        padding: 1rem;
+      }
+      h1 {
+        font-size: 1.8rem;
+      }
+      h2 {
+        font-size: 1.4rem;
+      }
+      .alert-container {
+        padding: 1rem;
+      }
+      .alert-title {
+        font-size: 1.2rem;
+      }
+      .alert-time, .warning-item, .copy-button {
+        font-size: 0.8rem;
+      }
+    }
+    @media (max-width: 480px) {
+      h1 {
+        font-size: 1.5rem;
+      }
+      h2 {
+        font-size: 1.2rem;
+      }
+      .alert-container {
+        padding: 0.75rem;
+      }
     }
   </style>
   <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;700&display=swap" rel="stylesheet">
 </head>
 <body>
   <h1>気象庁情報</h1>
-  <div id="loading" class="loading">データを読み込んでいます...</div>
+  <div id="loading" class="loading">
+    <div class="spinner"></div>
+    <span>データを読み込んでいます...</span>
+  </div>
   <div id="heatstroke" class="section">
     <h2>熱中症警戒アラート</h2>
     <div id="heatstroke-content" class="no-data">データなし</div>
@@ -86,6 +164,10 @@
     <h2>土砂災害警戒情報</h2>
     <div id="landslide-content" class="no-data">データなし</div>
   </div>
+  <div id="heavy-rain" class="section">
+    <h2>記録的短時間大雨情報</h2>
+    <div id="heavy-rain-content" class="no-data">データなし</div>
+  </div>
 
   <script>
     async function fetchWeatherAlerts() {
@@ -93,9 +175,8 @@
       const loadingDiv = document.getElementById('loading');
 
       try {
-        // メインフィードの取得
         const feedResponse = await fetch(feedUrl, { mode: 'cors' });
-        if (!feedResponse.ok) throw new Error(`フィード取得エラー: ${feedResponse.status}`);
+        if (!feedResponse.ok) throw new Error(`フィード取得エラー: ${feedResponse.status} ${feedResponse.statusText}`);
         const feedContent = await feedResponse.text();
         const feedXml = new DOMParser().parseFromString(feedContent, 'text/xml');
         const entries = feedXml.getElementsByTagNameNS('*', 'entry');
@@ -105,12 +186,12 @@
           return;
         }
 
-        // 各カテゴリのデータを格納
         const categories = {
           heatstroke: [],
           general: [],
           warnings: [],
-          landslide: []
+          landslide: [],
+          heavyRain: []
         };
 
         for (let entry of entries) {
@@ -118,38 +199,51 @@
           if (!idElement) continue;
           const detailLink = idElement.textContent;
 
-          // 詳細データの取得
           try {
             const detailResponse = await fetch(detailLink, { mode: 'cors' });
-            if (!detailResponse.ok) continue;
+            if (!detailResponse.ok) {
+              console.error(`詳細データ取得エラー: ${detailLink} - ステータス: ${detailResponse.status} ${detailResponse.statusText}`);
+              continue;
+            }
             const detailContent = await detailResponse.text();
             const detailXml = new DOMParser().parseFromString(detailContent, 'text/xml');
+            if (detailXml.documentElement.nodeName === 'parsererror') {
+              console.error(`XMLパースエラー: ${detailLink}`);
+              continue;
+            }
             categorizeAlert(detailXml, categories);
           } catch (e) {
-            console.error(`詳細データ取得エラー: ${detailLink}`, e);
+            console.error(`詳細データ取得エラー: ${detailLink} - ${e.message}`);
+            continue;
           }
         }
 
-        // 各カテゴリの表示
         displayCategory('heatstroke', categories.heatstroke);
         displayCategory('general', categories.general);
         displayCategory('warnings', categories.warnings);
         displayCategory('landslide', categories.landslide);
+        displayCategory('heavy-rain', categories.heavyRain);
 
         loadingDiv.style.display = 'none';
       } catch (e) {
-        loadingDiv.innerHTML = `<div class="error">エラー: ${e.message}</div>`;
+        loadingDiv.innerHTML = `<div class="error">エラー: ${e.message}。サーバーにアクセスできない可能性があります。後でもう一度お試しください。</div>`;
         console.error('エラー:', e);
       }
     }
 
     function categorizeAlert(detailXml, categories) {
       const control = detailXml.getElementsByTagNameNS('*', 'Control')[0];
-      if (!control) return;
+      if (!control) {
+        console.warn('Control要素が見つかりません');
+        return;
+      }
 
       const dateTime = control.getElementsByTagNameNS('*', 'DateTime')[0]?.textContent || '不明';
       const head = detailXml.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Head')[0];
-      if (!head) return;
+      if (!head) {
+        console.warn('Head要素が見つかりません');
+        return;
+      }
 
       const title = head.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Title')[0]?.textContent || 'タイトルなし';
       const headline = head.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/informationBasis1/', 'Headline')[0];
@@ -179,7 +273,6 @@
         }
       }
 
-      // タイトルに基づいて分類
       const alertData = { title, dateTime, headlineText, warningResults };
       if (title.includes('熱中症警戒アラート')) {
         categories.heatstroke.push(alertData);
@@ -187,6 +280,8 @@
         categories.general.push(alertData);
       } else if (title.includes('土砂災害警戒情報')) {
         categories.landslide.push(alertData);
+      } else if (title.includes('記録的短時間大雨情報')) {
+        categories.heavyRain.push(alertData);
       } else if (hasWarning) {
         categories.warnings.push(alertData);
       }
@@ -216,11 +311,32 @@
           container.appendChild(warningDiv);
         }
 
+        const copyButton = document.createElement('button');
+        copyButton.className = 'copy-button';
+        copyButton.textContent = 'テキストをコピー';
+        copyButton.onclick = () => {
+          const textToCopy = `${alert.title}\n発表: ${alert.dateTime}\n${alert.headlineText}\n${Object.entries(alert.warningResults).map(([kind, areas]) => `${kind} ${areas.join('／')}`).join('\n')}`;
+          navigator.clipboard.writeText(textToCopy).then(() => {
+            copyButton.textContent = 'コピーしました！';
+            copyButton.className = 'copy-button copied';
+            setTimeout(() => {
+              copyButton.textContent = 'テキストをコピー';
+              copyButton.className = 'copy-button';
+            }, 2000);
+          }).catch(err => {
+            console.error('コピー失敗:', err);
+            copyButton.textContent = 'コピー失敗';
+            setTimeout(() => {
+              copyButton.textContent = 'テキストをコピー';
+            }, 2000);
+          });
+        };
+        container.appendChild(copyButton);
+
         contentDiv.appendChild(container);
       });
     }
 
-    // ページ読み込み時にデータを取得
     window.onload = fetchWeatherAlerts;
   </script>
 </body>
