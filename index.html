@@ -709,14 +709,58 @@
             // バックグラウンドで最新データを取得
             this.fetchLatestDataInBackground();
             return;
+            // バックグラウンドで最新データを取得
+            this.fetchLatestDataInBackground();
+            return;
           this.showError(error.message);
         }
       }
 
       async fetchLatestDataInBackground() {
         try {
+        } catch (error) {
+          console.error('初期化エラー:', error);
       async fetchLatestDataInBackground() {
         try {
+          await this.fetchWeatherAlerts();
+          this.setCachedData(this.categories);
+          this.displayAllCategories();
+          this.updateCacheStatus('最新データに更新完了');
+        } catch (error) {
+          console.warn('バックグラウンド更新エラー:', error);
+          this.updateCacheStatus('更新エラー - キャッシュデータを表示中');
+        }
+      }
+
+      getCachedData() {
+        try {
+          const cached = localStorage.getItem(this.cacheKey);
+          if (!cached) return null;
+
+          const data = JSON.parse(cached);
+          if (Date.now() - data.timestamp > this.cacheExpiry) {
+            localStorage.removeItem(this.cacheKey);
+            return null;
+          }
+
+          return data;
+        } catch (error) {
+          console.warn('キャッシュ読み込みエラー:', error);
+          return null;
+        }
+      }
+
+      setCachedData(categories) {
+        try {
+          const data = {
+            categories,
+            timestamp: Date.now()
+          };
+          localStorage.setItem(this.cacheKey, JSON.stringify(data));
+        } catch (error) {
+          console.warn('キャッシュ保存エラー:', error);
+        }
+      }
       getXmlCache() {
         try {
           const cached = localStorage.getItem('jma-xml-cache');
