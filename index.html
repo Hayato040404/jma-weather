@@ -712,14 +712,20 @@
             // バックグラウンドで最新データを取得
             this.fetchLatestDataInBackground();
             return;
+            // バックグラウンドで最新データを取得
+            this.fetchLatestDataInBackground();
+            return;
           await this.fetchWeatherAlerts();
           this.displayAllCategories();
           this.hideLoading();
+      async fetchLatestDataInBackground() {
+        try {
         } catch (error) {
           console.error('初期化エラー:', error);
           this.showError(error.message);
         }
       }
+
       getXmlCache() {
         try {
           const cached = localStorage.getItem('jma-xml-cache');
