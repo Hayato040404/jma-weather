@@ -705,62 +705,19 @@
             
             // バックグラウンドで最新データを取得
             this.fetchLatestDataInBackground();
-            return;
-            // バックグラウンドで最新データを取得
-            this.fetchLatestDataInBackground();
-            return;
-            // バックグラウンドで最新データを取得
-            this.fetchLatestDataInBackground();
-            return;
-            // バックグラウンドで最新データを取得
-            this.fetchLatestDataInBackground();
-            return;
-          await this.fetchWeatherAlerts();
-          this.displayAllCategories();
           this.hideLoading();
       async fetchLatestDataInBackground() {
         try {
-        } catch (error) {
-          console.error('初期化エラー:', error);
           this.showError(error.message);
         }
       }
 
-      getXmlCache() {
+      async fetchLatestDataInBackground() {
         try {
-          const cached = localStorage.getItem('jma-xml-cache');
-          if (!cached) return null;
-
-          return JSON.parse(cached);
-        } catch (error) {
-          console.warn('XMLキャッシュ読み込みエラー:', error);
-          return null;
-        }
-      }
-
-      setXmlCache(cache) {
-        try {
-          localStorage.setItem('jma-xml-cache', JSON.stringify(cache));
-        } catch (error) {
-          console.warn('XMLキャッシュ保存エラー:', error);
-        }
-      }
-
-      isXmlCacheValid(timestamp) {
-        return Date.now() - timestamp < (10 * 60 * 1000); // 10分
-      }
-
-      updateCacheStatus(message) {
-        if (this.cacheStatusElement) {
-          this.cacheStatusElement.textContent = message;
-        }
-      }
-
       async fetchWeatherAlerts() {
         const feedUrl = "https://www.data.jma.go.jp/developer/xml/feed/extra.xml";
 
         try {
-          this.updateCacheStatus('気象庁サーバーに接続中...');
           const feedResponse = await fetch(feedUrl, { mode: 'cors' });
           if (!feedResponse.ok) {
             throw new Error(`データの取得に失敗しました (${feedResponse.status})`);
@@ -775,11 +732,6 @@
             return;
           }
 
-          // XMLキャッシュを取得
-          let xmlCache = this.getXmlCache() || {};
-          let cacheHits = 0;
-          let cacheMisses = 0;
-
           // Process entries with progress indication
           const totalEntries = entries.length;
           let processedEntries = 0;
@@ -789,63 +741,32 @@
             if (!idElement) continue;
             
             const detailLink = idElement.textContent;
-            const cacheKey = detailLink;
-            
-            let detailXml = null;
-            
-            // キャッシュをチェック
-            if (xmlCache[cacheKey] && this.isXmlCacheValid(xmlCache[cacheKey].timestamp)) {
-              detailXml = new DOMParser().parseFromString(xmlCache[cacheKey].content, 'text/xml');
-              cacheHits++;
-              this.updateCacheStatus(`キャッシュ活用中... (${cacheHits}件キャッシュ使用)`);
-            } else {
-              // 新しいデータを取得
-              try {
-                const detailResponse = await fetch(detailLink, { mode: 'cors' });
-                if (!detailResponse.ok) {
-                  console.warn(`詳細データ取得エラー: ${detailLink}`);
-                  continue;
-                }
-                
-                const detailContent = await detailResponse.text();
-                detailXml = new DOMParser().parseFromString(detailContent, 'text/xml');
-                
-                if (detailXml.documentElement.nodeName === 'parsererror') {
-                  console.warn(`XMLパースエラー: ${detailLink}`);
-                  continue;
-                }
-                
-                // キャッシュに保存
-                xmlCache[cacheKey] = {
-                  content: detailContent,
-                  timestamp: Date.now()
-                };
-                
-                cacheMisses++;
-                this.updateCacheStatus(`新しいデータ取得中... (${cacheMisses}件新規取得)`);
-                
-              } catch (e) {
-                console.warn(`詳細データ取得エラー: ${detailLink} - ${e.message}`);
+
+            try {
+              const detailResponse = await fetch(detailLink, { mode: 'cors' });
+              if (!detailResponse.ok) {
+                console.warn(`詳細データ取得エラー: ${detailLink}`);
                 continue;
               }
-            }
-            
-            if (detailXml) {
+              
+              const detailContent = await detailResponse.text();
+              const detailXml = new DOMParser().parseFromString(detailContent, 'text/xml');
+              
+              if (detailXml.documentElement.nodeName === 'parsererror') {
+                console.warn(`XMLパースエラー: ${detailLink}`);
+                continue;
+              }
+              
               this.categorizeAlert(detailXml);
+              
+            } catch (e) {
+              console.warn(`詳細データ取得エラー: ${detailLink} - ${e.message}`);
+              continue;
             }
             
             processedEntries++;
             this.updateLoadingProgress(processedEntries, totalEntries);
           }
-
-          // 更新されたキャッシュを保存
-          this.setXmlCache(xmlCache);
-          
-          const statusMessage = `データ取得完了 (キャッシュ: ${cacheHits}件, 新規: ${cacheMisses}件)`;
-          this.updateCacheStatus(statusMessage);
-
-          this.displayAllCategories();
-          this.hideLoading();
 
         } catch (error) {
           throw new Error(`サーバーに接続できませんでした。しばらく時間をおいて再度お試しください。`);
