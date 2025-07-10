@@ -488,7 +488,7 @@
           general: [],
           warnings: [],
           landslide: [],
-          heavyRain: []
+          'heavy-rain': []
         };
         this.init();
       }
@@ -600,13 +600,14 @@
                 const kindName = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Name')[0]?.textContent || '不明';
                 const status = kind.getElementsByTagNameNS('http://xml.kishou.go.jp/jmaxml1/body/meteorology1/', 'Status')[0]?.textContent || '不明';
                 
-                // 警報のみを表示（注意報は除外）
-                if (kindName.includes('警報')) {
+                // 土砂災害警戒情報は注意報カットの対象外
+                if (title.includes('土砂災害警戒情報') || kindName.includes('警報')) {
                   const key = `${kindName} [${status}]`;
                   
                   if (!warningResults[key]) warningResults[key] = [];
                   warningResults[key].push(areaName);
-                  hasWarning = true;
+                  
+                  if (kindName.includes('警報')) hasWarning = true;
                 }
               }
             }
@@ -629,7 +630,7 @@
         } else if (title.includes('土砂災害警戒情報')) {
           this.categories.landslide.push(alertData);
         } else if (title.includes('記録的短時間大雨情報')) {
-          this.categories.heavyRain.push(alertData);
+          this.categories['heavy-rain'].push(alertData);
         } else if (hasWarning) {
           this.categories.warnings.push(alertData);
         }
@@ -665,7 +666,11 @@
         
         categoryOrder.forEach((categoryId, index) => {
           setTimeout(() => {
-            this.displayCategory(categoryId, this.categories[categoryId.replace('-', '')]);
+            const categoryKey = categoryId === 'heavy-rain' ? 'heavy-rain' : categoryId.replace('-', '');
+            const alerts = this.categories[categoryKey];
+            if (alerts) {
+              this.displayCategory(categoryId, alerts);
+            }
           }, index * 100);
         });
       }
@@ -770,7 +775,7 @@
         });
 
         const textToCopy = [
-          alert.title,
+          `【${alert.title}】`,
           `発表: ${alert.dateTime}`,
           alert.headlineText,
           ...warningTexts
